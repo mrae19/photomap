@@ -468,9 +468,85 @@ async function loadImages() {
     }
 }
 
+// Load and process photos for a specific day
+async function loadPhotosByDay(day) {
+    // Clear existing photos and markers
+    photos = [];
+    markers.forEach(marker => marker.remove());
+    markers = [];
+
+    // Update UI to show loading state
+    const dayButtons = document.querySelectorAll('.day-btn');
+    dayButtons.forEach(btn => {
+        if (btn.getAttribute('data-day') === day) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    try {
+        // Construct URL with day parameter if specified
+        const url = day ? `/api/images?day=${encodeURIComponent(day)}` : '/api/images';
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.files && data.files.length > 0) {
+            for (const file of data.files) {
+                try {
+                    const response = await fetch(`/mapimages/${file}`);
+                    if (!response.ok) {
+                        console.warn(`Failed to load image: ${file}`);
+                        continue;
+                    }
+                    const blob = await response.blob();
+                    const fileObj = new File([blob], file.split('/').pop(), { type: blob.type });
+                    const photoData = await processPhoto(fileObj);
+                    if (photoData) {
+                        photos.push(photoData);
+                        addPhotoMarker(photoData);
+                    }
+                } catch (error) {
+                    console.error(`Error processing image ${file}:`, error);
+                }
+            }
+
+            // Fit map to show all photos if we have any
+            if (photos.length > 0) {
+                const bounds = new mapboxgl.LngLatBounds();
+                photos.forEach(photo => bounds.extend([photo.lng, photo.lat]));
+                map.fitBounds(bounds, { padding: 50 });
+                console.log(`Successfully loaded ${photos.length} photos for ${day || 'all days'}`);
+            } else {
+                console.warn(`No photos found for ${day || 'all days'}`);
+            }
+        } else {
+            console.warn(`No files found for ${day || 'all days'}`);
+        }
+    } catch (error) {
+        console.error('Error loading images:', error);
+    }
+
+    // Update heatmap after loading photos
+    updateHeatmap();
+}
+
+// Add event listeners for day navigation
+function setupDayNav() {
+    const dayButtons = document.querySelectorAll('.day-btn');
+    dayButtons.forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const day = this.getAttribute('data-day');
+            await loadPhotosByDay(day);
+        });
+    });
+}
+
 // Initialize everything
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     setupSearch();
     setupModal();
+    setupDayNav();
+    loadPhotosByDay(); // Load all photos by default
 }); 

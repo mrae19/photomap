@@ -71,7 +71,7 @@ body {
 }
 
 .map-container {
-    height: calc(100vh - 90px); /* Adjusted for header + footer */
+    height: calc(100vh - 130px); /* header (60) + nav (40) + footer (30) */
     width: 100%;
 }
 
@@ -179,4 +179,107 @@ body {
 .photo-info p {
     margin: 5px 0;
     color: #666;
+}
+
+#right-panel {
+    position: fixed;
+    top: 70px;
+    right: 0;
+    width: 340px;
+    max-width: 90vw;
+    height: calc(100vh - 90px);
+    background: rgba(30, 30, 30, 0.92);
+    color: #fff;
+    z-index: 1100;
+    padding: 24px 20px 20px 20px;
+    overflow-y: auto;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+    font-family: inherit;
+}
+
+#right-panel h2, #right-panel h3 {
+    margin-top: 0;
+    color: #6ec1e4;
+}
+
+#right-panel a {
+    color: #6ec1e4;
+    text-decoration: underline;
+}
+
+#right-panel table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.07);
+}
+
+#right-panel th, #right-panel td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #444;
+    text-align: left;
+}
+
+#right-panel th {
+    background: rgba(110,193,228,0.15);
+    color: #fff;
+}
+
+#right-panel tr:last-child td {
+    border-bottom: none;
+}
+
+@media (max-width: 600px) {
+    #right-panel {
+        width: 95vw;
+        left: 0;
+        right: 0;
+        top: 60px;
+        border-radius: 0 0 12px 12px;
+        height: auto;
+        max-height: 60vh;
+    }
+}
+
+.day-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,0,0,0.92);
+    padding: 10px 0;
+    position: relative;
+    z-index: 1050;
+}
+.day-btn {
+    background: #6ec1e4;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 18px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.day-btn:hover, .day-btn.active {
+    background: #007cbf;
+    color: #fff;
+}
+
+@media (max-width: 600px) {
+    .day-nav {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 6px 0;
+    }
+    .day-btn {
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+    .map-container {
+        height: calc(100vh - 160px);
+    }
 } 
