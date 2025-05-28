@@ -4,10 +4,6 @@ import socketserver
 import os
 import json
 from urllib.parse import urlparse, parse_qs
-import google.oauth2.credentials
-import google_auth_oauthlib.flow
-from googleapiclient.discovery import build
-from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, SCOPES
 
 PORT = 8000
 
@@ -23,12 +19,8 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        if self.path == '/api/images':
+        if self.path.startswith('/api/images'):
             self.handle_image_list()
-        elif self.path.startswith('/oauth2callback'):
-            self.handle_oauth_callback()
-        elif self.path == '/auth/google':
-            self.handle_google_auth()
         else:
             super().do_GET()
 
@@ -37,98 +29,32 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         
-        # Check if we have Google Photos credentials
-        if os.path.exists('token.json'):
-            try:
-                with open('token.json', 'r') as token:
-                    credentials = google.oauth2.credentials.Credentials.from_authorized_user_info(
-                        json.load(token), SCOPES)
-                
-                service = build('photoslibrary', 'v1', credentials=credentials)
-                results = service.mediaItems().list(pageSize=100).execute()
-                items = results.get('mediaItems', [])
-                
-                # Filter for images with location data
-                photos_with_location = []
-                for item in items:
-                    if 'mediaMetadata' in item and 'location' in item['mediaMetadata']:
-                        photos_with_location.append({
-                            'id': item['id'],
-                            'baseUrl': item['baseUrl'],
-                            'filename': item['filename'],
-                            'location': item['mediaMetadata']['location']
-                        })
-                
-                self.wfile.write(json.dumps({'files': photos_with_location}).encode())
-                return
-            except Exception as e:
-                print(f"Error accessing Google Photos: {e}")
-        
-        # Fallback to local images if Google Photos fails or isn't authenticated
+        # Handle local images
         image_dir = 'mapimages'
-        if os.path.exists(image_dir):
-            files = [f for f in os.listdir(image_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
-            self.wfile.write(json.dumps({'files': files}).encode())
-        else:
-            self.wfile.write(json.dumps({'files': []}).encode())
+        query = urlparse(self.path).query
+        params = parse_qs(query)
+        day = params.get('day', [None])[0]
+        files = []
 
-    def handle_google_auth(self):
-        flow = google_auth_oauthlib.flow.Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": GOOGLE_CLIENT_ID,
-                    "client_secret": GOOGLE_CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                    "redirect_uris": [GOOGLE_REDIRECT_URI]
-                }
-            },
-            scopes=SCOPES
-        )
-        
-        authorization_url, state = flow.authorization_url(
-            access_type='offline',
-            include_granted_scopes='true'
-        )
-        
-        self.send_response(302)
-        self.send_header('Location', authorization_url)
-        self.end_headers()
-
-    def handle_oauth_callback(self):
-        query_components = parse_qs(urlparse(self.path).query)
-        code = query_components.get('code', [None])[0]
-        
-        if code:
-            flow = google_auth_oauthlib.flow.Flow.from_client_config(
-                {
-                    "web": {
-                        "client_id": GOOGLE_CLIENT_ID,
-                        "client_secret": GOOGLE_CLIENT_SECRET,
-                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                        "token_uri": "https://oauth2.googleapis.com/token",
-                        "redirect_uris": [GOOGLE_REDIRECT_URI]
-                    }
-                },
-                scopes=SCOPES
-            )
-            
-            flow.fetch_token(code=code)
-            credentials = flow.credentials
-            
-            # Save credentials
-            with open('token.json', 'w') as token:
-                token.write(credentials.to_json())
-            
-            # Redirect back to the main page
-            self.send_response(302)
-            self.send_header('Location', '/')
-            self.end_headers()
+        if day:
+            # Handle day-specific requests
+            day_dir = os.path.join(image_dir, day)
+            if os.path.exists(day_dir):
+                for f in os.listdir(day_dir):
+                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+                        files.append(f"{day}/{f}")
         else:
-            self.send_response(400)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(b'Authentication failed')
+            # List all images in mapimages and subfolders
+            for root, dirs, filenames in os.walk(image_dir):
+                for f in filenames:
+                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+                        rel_dir = os.path.relpath(root, image_dir)
+                        if rel_dir == '.':
+                            files.append(f)
+                        else:
+                            files.append(f"{rel_dir}/{f}")
+
+        self.wfile.write(json.dumps({'files': files}).encode())
 
 if __name__ == "__main__":
     with socketserver.TCPServer(("", PORT), CORSRequestHandler) as httpd:
