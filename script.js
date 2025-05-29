@@ -283,25 +283,6 @@ function setupModal() {
     });
 }
 
-// Add Google Photos authentication button
-const authButton = document.createElement('button');
-authButton.textContent = 'Connect Google Photos';
-authButton.style.position = 'absolute';
-authButton.style.top = '70px';
-authButton.style.right = '20px';
-authButton.style.zIndex = '1000';
-authButton.style.padding = '8px 16px';
-authButton.style.backgroundColor = '#4285f4';
-authButton.style.color = 'white';
-authButton.style.border = 'none';
-authButton.style.borderRadius = '4px';
-authButton.style.cursor = 'pointer';
-document.body.appendChild(authButton);
-
-authButton.addEventListener('click', () => {
-    window.location.href = '/auth/google';
-});
-
 // Function to calculate distance between two points in kilometers
 function getDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radius of the earth in km
